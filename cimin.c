@@ -30,8 +30,8 @@ int is_valid_range(int a, int b){
     else return 0;
 }
 
-char *bytedup(char *data, int len){
-    char *copydata = (char*)malloc(sizeof(char) * len);
+unsigned char *bytedup(unsigned char *data, int len){
+    unsigned char *copydata = (unsigned char*)malloc(sizeof(unsigned char) * len);
     int written = 0;
     for(int i = 0; i < len; i++){
         copydata[i] = data[i];
@@ -39,24 +39,24 @@ char *bytedup(char *data, int len){
     return copydata;
 }
 
-int bytencopy(char* dst, char* src, int len){
+int bytencopy(unsigned char* dst, unsigned char* src, int len){
     for(int i = 0; i < len; i++){
         dst[i] = src[i];
     }
     return len;
 }
 
-int input_test(char *input, int len){
-    debug(
-        // printf("len:%d\n",len);
-        // write(STDOUT_FILENO, input, len);
-        // printf("==========================================\n"); 
-        // sleep(1);
-    );
-    // char *teststr = bytedup(input, len);
+int input_test(unsigned char *input, int len){
+    // debug(
+    //     // printf("len:%d\n",len);
+    //     // write(STDOUT_FILENO, input, len);
+    //     // printf("==========================================\n"); 
+    //     // sleep(1);
+    // );
+    // unsigned char *teststr = bytedup(input, len);
     int p2c[2];
     int c2p[2];
-    char errbuf[BUF_SIZE];
+    unsigned char errbuf[BUF_SIZE];
     pipe(p2c);
     pipe(c2p);
     int pid = fork();
@@ -88,7 +88,7 @@ int input_test(char *input, int len){
         written = write(p2c[WRITE_END], input, len);
         close(p2c[WRITE_END]);
         // debug(
-        //     printf("test:%s",teststr);
+        //     // printf("test:%s",input);
         //     printf("written:%d\n",written);
         // );
         wait(NULL);
@@ -105,7 +105,7 @@ int input_test(char *input, int len){
     }
 
     // debug(
-    //     printf("errbuf:%s", errbuf);
+    //     printf("errbuf:%s\n", errbuf);
     // );
     // free(teststr);
 
@@ -116,47 +116,47 @@ int input_test(char *input, int len){
     return 1;
 }
 
-char *
-reduce(char *input, int datalen){
+unsigned char *
+reduce(unsigned char *input, int datalen){
     debug(
+            // for(int i=0;i<datalen;i++){
+            // printf("0x%02x ",input[i]);
+            // }
             write(STDOUT_FILENO, input, datalen);
             printf("\n==========================================\n");
     );
-    char *teststr = bytedup(input, datalen);
+    unsigned char *teststr = bytedup(input, datalen);
     int s = datalen - 1;
 
-    char head[BUF_SIZE] = {0};
-    char tail[BUF_SIZE] = {0};
-    char mid[BUF_SIZE]  = {0};
+    unsigned char head[BUF_SIZE] = {0};
+    unsigned char tail[BUF_SIZE] = {0};
+    unsigned char mid[BUF_SIZE]  = {0};
 
     while(s > 0){
         // debug(printf("s:%d\n",s););
         for(int i = 0; i < datalen - s; i++){
+            memset(head, 0, BUF_SIZE);
+            memset(tail, 0, BUF_SIZE);
+            unsigned char catbuf[BUF_SIZE];
+
             int head_len = 0;
             int tail_len = 0;
             if(is_valid_range(0, i - 1)){
                 bytencopy(head, teststr, i);
                 head[i] = '\0'; 
                 head_len = i;
-            }
-            else{
-                // memset(head, 0, BUF_SIZE);
+                bytencopy(catbuf           , head, head_len);
             }
 
             if(is_valid_range(i+s, datalen - 1)){
                 bytencopy(tail, teststr + i+s, (datalen) - (i + s)); 
                 tail[(datalen) - (i + s)] = '\0';
                 tail_len = (datalen) - (i + s);
-            }
-            else{
-                // memset(tail, 0, BUF_SIZE);
+                bytencopy(catbuf + head_len, tail, tail_len);
             }
             //head + tail data
-            // char *catbuf = (char*)malloc(sizeof(char) * (head_len + tail_len));
-            char catbuf[BUF_SIZE];
-            bytencopy(catbuf           , head, head_len);
-            bytencopy(catbuf + head_len, tail, tail_len);
-            
+            // unsigned char *catbuf = (unsigned char*)malloc(sizeof(unsigned char) * (head_len + tail_len));
+
             //test and reculsion
             if(input_test(catbuf, (head_len + tail_len)) == 1){ //success
                 return reduce(catbuf, (head_len + tail_len));
@@ -166,16 +166,16 @@ reduce(char *input, int datalen){
 
         for(int i = 0; i < datalen - s; i++){
             int mid_len = 0;
+            unsigned char catbuf[BUF_SIZE];
             if(is_valid_range(i, i + s - 1)){
-                bytencopy(mid, teststr, (i + s) - i);
+                bytencopy(mid, teststr + i, (i + s) - i);
                 mid[(i + s) - i] = '\0'; 
-                mid_len += (i + s) - i;
+                mid_len = (i + s) - i;
             }
             else{
                 // memset(mid, 0, BUF_SIZE);
             }
-            // char *catbuf = (char*)malloc(sizeof(char) * mid_len); 
-            char catbuf[BUF_SIZE];
+            // unsigned char *catbuf = (unsigned char*)malloc(sizeof(unsigned char) * mid_len); 
             bytencopy(catbuf, mid, mid_len);
 
             if(input_test(catbuf, mid_len) == 1){ //success
@@ -190,8 +190,8 @@ reduce(char *input, int datalen){
     return teststr;
 }
 
-char *
-minimize(char *input, int len){
+unsigned char *
+minimize(unsigned char *input, int len){
     return reduce(input, len);
 }
 
@@ -245,7 +245,7 @@ int main(int argc, char *argv[]){
     }
     //read input file;
     int data_len;
-    char data[BUF_SIZE];
+    unsigned char data[BUF_SIZE];
     if((data_len = fread(data, 1, BUF_SIZE, ifd)) == 0){
         if(feof(ifd) == 0){
             perror("fread");
@@ -253,7 +253,8 @@ int main(int argc, char *argv[]){
         }
     }
     fclose(ifd);
-    char* result = minimize(data, data_len);
+
+    unsigned char* result = minimize(data, data_len);
     int written = 0;    
     while(written < result_len){
         written += fwrite(result + written, 1, result_len - written, ofd);

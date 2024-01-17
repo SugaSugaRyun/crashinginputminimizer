@@ -1,3 +1,6 @@
+/*
+    bytencopy tail부분 
+*/
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -44,23 +47,30 @@ int bytencopy(char* dst, char* src, int len){
 }
 
 int input_test(char *input, int len){
-    write(STDOUT_FILENO, input, len);
-    char *teststr = bytedup(input, len);
+    debug(
+        // printf("len:%d\n",len);
+        // write(STDOUT_FILENO, input, len);
+        // printf("==========================================\n"); 
+        // sleep(1);
+    );
+    // char *teststr = bytedup(input, len);
     int p2c[2];
     int c2p[2];
     char errbuf[BUF_SIZE];
-
+    pipe(p2c);
+    pipe(c2p);
     int pid = fork();
     if(pid == 0){ //child
         close(STDOUT_FILENO);
         
         close(p2c[WRITE_END]);
         dup2(p2c[READ_END], STDIN_FILENO);
-        // close(p2c[READ_END]);
+        close(p2c[READ_END]);
 
         close(c2p[READ_END]);
         dup2(c2p[WRITE_END], STDERR_FILENO);
-
+        close(c2p[WRITE_END]);
+        
         char *args[] = {"/bin/bash", "-c", target, NULL};
         if(execv("/bin/bash", args) == -1){
             perror("execv");
@@ -72,12 +82,15 @@ int input_test(char *input, int len){
 
         close(p2c[READ_END]);
         int written = 0;
-        while(written < len){
-            written += write(p2c[WRITE_END], teststr + written, len - written);
-        }
-        debug(printf("written:%d len:%d\n%s", written, len, input););
+        // while(written < len){
+        //     written += write(p2c[WRITE_END], teststr + written, len - written);
+        // }
+        written = write(p2c[WRITE_END], input, len);
         close(p2c[WRITE_END]);
-
+        // debug(
+        //     printf("test:%s",teststr);
+        //     printf("written:%d\n",written);
+        // );
         wait(NULL);
         int total_read = 0;
         int one_read = 0;
@@ -91,12 +104,15 @@ int input_test(char *input, int len){
         exit(EXIT_FAILURE);
     }
 
+    // debug(
+    //     printf("errbuf:%s", errbuf);
+    // );
+    // free(teststr);
+
     if(strstr(errbuf, errmsg) == NULL){ //일치하는 에러 없음.
-        free(teststr);
         return 0;
     }
 
-    free(teststr);
     return 1;
 }
 
@@ -104,6 +120,7 @@ char *
 reduce(char *input, int datalen){
     debug(
             write(STDOUT_FILENO, input, datalen);
+            printf("\n==========================================\n");
     );
     char *teststr = bytedup(input, datalen);
     int s = datalen - 1;
@@ -113,28 +130,30 @@ reduce(char *input, int datalen){
     char mid[BUF_SIZE]  = {0};
 
     while(s > 0){
+        // debug(printf("s:%d\n",s););
         for(int i = 0; i < datalen - s; i++){
             int head_len = 0;
             int tail_len = 0;
             if(is_valid_range(0, i - 1)){
-                bytencopy(head, teststr, (i - 1) - 0);
-                head[(i - 1) - 0] = '\0'; 
-                head_len += (i - 1) - 0;
+                bytencopy(head, teststr, i);
+                head[i] = '\0'; 
+                head_len = i;
             }
             else{
-                memset(head, 0, BUF_SIZE);
+                // memset(head, 0, BUF_SIZE);
             }
 
             if(is_valid_range(i+s, datalen - 1)){
-                bytencopy(tail, teststr, (datalen - 1) - (i + s)); 
-                tail[(datalen - 1) - (i + s)] = '\0';
-                tail_len += (datalen - 1) - (i + s);
+                bytencopy(tail, teststr + i+s, (datalen) - (i + s)); 
+                tail[(datalen) - (i + s)] = '\0';
+                tail_len = (datalen) - (i + s);
             }
             else{
-                memset(tail, 0, BUF_SIZE);
+                // memset(tail, 0, BUF_SIZE);
             }
             //head + tail data
-            char *catbuf = (char*)malloc(sizeof(char) * (head_len + tail_len));
+            // char *catbuf = (char*)malloc(sizeof(char) * (head_len + tail_len));
+            char catbuf[BUF_SIZE];
             bytencopy(catbuf           , head, head_len);
             bytencopy(catbuf + head_len, tail, tail_len);
             
@@ -142,26 +161,27 @@ reduce(char *input, int datalen){
             if(input_test(catbuf, (head_len + tail_len)) == 1){ //success
                 return reduce(catbuf, (head_len + tail_len));
             }
-            free(catbuf);
+            // free(catbuf);
         }
 
         for(int i = 0; i < datalen - s; i++){
             int mid_len = 0;
             if(is_valid_range(i, i + s - 1)){
-                bytencopy(mid, teststr, (i + s - 1) - i);
-                mid[(i + s - 1) - i] = '\0'; 
-                mid_len += (i + s - 1) - i;
+                bytencopy(mid, teststr, (i + s) - i);
+                mid[(i + s) - i] = '\0'; 
+                mid_len += (i + s) - i;
             }
             else{
-                memset(mid, 0, BUF_SIZE);
+                // memset(mid, 0, BUF_SIZE);
             }
-            char *catbuf = (char*)malloc(sizeof(char) * mid_len); 
+            // char *catbuf = (char*)malloc(sizeof(char) * mid_len); 
+            char catbuf[BUF_SIZE];
             bytencopy(catbuf, mid, mid_len);
 
             if(input_test(catbuf, mid_len) == 1){ //success
                 return reduce(catbuf, mid_len);
             }
-            free(catbuf);
+            // free(catbuf);
         }
 
         s -= 1;
@@ -184,7 +204,7 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
     
-    printf("argv[7]:%s\n", argv[7]);
+    // printf("argv[7]:%s\n", argv[7]);
 
     while ((opt = getopt(argc, argv, "m:i:o:")) != -1) {
         switch (opt) {
