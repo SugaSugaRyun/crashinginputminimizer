@@ -126,18 +126,23 @@ reduce(unsigned char *input, int datalen){
             printf("\n==========================================\n");
     );
     unsigned char *teststr = bytedup(input, datalen);
+    free(input);
     int s = datalen - 1;
 
-    unsigned char head[BUF_SIZE] = {0};
-    unsigned char tail[BUF_SIZE] = {0};
-    unsigned char mid[BUF_SIZE]  = {0};
+    // unsigned char head[BUF_SIZE] = {0};
+    // unsigned char tail[BUF_SIZE] = {0};
+    // unsigned char mid[BUF_SIZE]  = {0};
+
+    unsigned char* head = (unsigned char*)malloc(sizeof(unsigned char) * BUF_SIZE);
+    unsigned char* tail = (unsigned char*)malloc(sizeof(unsigned char) * BUF_SIZE);   
+    unsigned char* mid  = (unsigned char*)malloc(sizeof(unsigned char) * BUF_SIZE);
 
     while(s > 0){
-        // debug(printf("s:%d\n",s););
+        debug(printf("len: %d s:%d\n", datalen, s););
         for(int i = 0; i < datalen - s; i++){
-            memset(head, 0, BUF_SIZE);
-            memset(tail, 0, BUF_SIZE);
-            unsigned char catbuf[BUF_SIZE];
+            // memset(head, 0, BUF_SIZE);
+            // memset(tail, 0, BUF_SIZE);
+            // unsigned char catbuf[BUF_SIZE];
 
             int head_len = 0;
             int tail_len = 0;
@@ -145,28 +150,31 @@ reduce(unsigned char *input, int datalen){
                 bytencopy(head, teststr, i);
                 head[i] = '\0'; 
                 head_len = i;
-                bytencopy(catbuf           , head, head_len);
             }
 
             if(is_valid_range(i+s, datalen - 1)){
                 bytencopy(tail, teststr + i+s, (datalen) - (i + s)); 
                 tail[(datalen) - (i + s)] = '\0';
                 tail_len = (datalen) - (i + s);
-                bytencopy(catbuf + head_len, tail, tail_len);
             }
             //head + tail data
-            // unsigned char *catbuf = (unsigned char*)malloc(sizeof(unsigned char) * (head_len + tail_len));
-
+            unsigned char *catbuf = (unsigned char*)malloc(sizeof(unsigned char) * (head_len + tail_len));
+            bytencopy(catbuf           , head, head_len);
+            bytencopy(catbuf + head_len, tail, tail_len);
+            
             //test and reculsion
             if(input_test(catbuf, (head_len + tail_len)) == 1){ //success
+                free(head);
+                free(tail);
+                free(mid);
                 return reduce(catbuf, (head_len + tail_len));
             }
-            // free(catbuf);
+            free(catbuf);
         }
 
         for(int i = 0; i < datalen - s; i++){
             int mid_len = 0;
-            unsigned char catbuf[BUF_SIZE];
+            // unsigned char catbuf[BUF_SIZE];
             if(is_valid_range(i, i + s - 1)){
                 bytencopy(mid, teststr + i, (i + s) - i);
                 mid[(i + s) - i] = '\0'; 
@@ -175,24 +183,31 @@ reduce(unsigned char *input, int datalen){
             else{
                 // memset(mid, 0, BUF_SIZE);
             }
-            // unsigned char *catbuf = (unsigned char*)malloc(sizeof(unsigned char) * mid_len); 
+            unsigned char *catbuf = (unsigned char*)malloc(sizeof(unsigned char) * mid_len); 
             bytencopy(catbuf, mid, mid_len);
 
             if(input_test(catbuf, mid_len) == 1){ //success
+                free(head);
+                free(tail);
+                free(mid);
                 return reduce(catbuf, mid_len);
             }
-            // free(catbuf);
+            free(catbuf);
         }
 
         s -= 1;
     }
     result_len = datalen;
+    free(head);
+    free(tail);
+    free(mid);
     return teststr;
 }
 
 unsigned char *
 minimize(unsigned char *input, int len){
-    return reduce(input, len);
+    unsigned char* data = bytedup(input, len);
+    return reduce(data, len);
 }
 
 
